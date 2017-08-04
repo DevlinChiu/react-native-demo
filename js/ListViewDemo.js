@@ -12,9 +12,15 @@ import {
     ListView,
     RefreshControl,
     Image,
-    TouchableWithoutFeedback
+    TouchableWithoutFeedback,
+    TouchableOpacity,
+    ToastAndroid,
+    Dimensions
 } from 'react-native';
 
+let list = [];
+let index = 1;
+let {width, height} = Dimensions.get('window');
 
 export default class ListViewDemo extends Component {
 
@@ -25,7 +31,7 @@ export default class ListViewDemo extends Component {
     constructor(props) {
         super(props);
         this.state = {
-            dataSource: new ListView.DataSource({
+            dataSource: new ListView.DataSource({//数据源
                 rowHasChanged: (row1, row2) => row1 !== row2,
             }),
             isLoading: true,
@@ -34,30 +40,29 @@ export default class ListViewDemo extends Component {
     }
 
     render() {
-
-
         if (this.state.isError) {
             return this.renderError();
+        } else {
+            return this.renderList();
         }
+    }
+
+    renderList() {
         return (
             <ListView
                 dataSource={this.state.dataSource}
-                renderRow={this.renderMovie.bind(this)}
+                renderRow={this.renderMovie.bind(this)} // 渲染listView的每一个item，必须实现
+                onEndReachedThreshold={100}//触发ListView滑动到最后一个item回调的阈值
+                onEndReached={this._onEndReached.bind(this)}//ListView滑动到最后一个item回调，可以用来实现下拉加载
                 style={styles.listView}
-                refreshControl={
+                refreshControl={//下拉刷新
                     <RefreshControl
                         refreshing={this.state.isLoading}
                         onRefresh={() => this.onRefresh()}
-                        title="Loading..."
                     />}
             />
         );
     }
-
-    onRefresh() {
-        this.getMoviesFromApiAsync();
-    }
-
 
     renderError() {
         return (
@@ -68,21 +73,40 @@ export default class ListViewDemo extends Component {
         );
     }
 
+    onRefresh() {
+        index = 1;
+        list = [];
+        this.getMoviesFromApiAsync();
+    }
+
+    _onEndReached() {
+        console.log("滑到底部了~");
+        // ToastAndroid.show("滑到底部了~", ToastAndroid.SHORT);
+        if (this.state.isLoading) return;
+        this.setState({
+            isLoading: true
+        });
+        index++;
+        this.getMoviesFromApiAsync();
+    }
+
     renderMovie(result) {
         return (
-            <TouchableWithoutFeedback
-                onPress={() => this.props.navigation.navigate('Detail', {url:result.url})}>
-                <View style={styles.container}>
-                    <Image
-                        style={styles.image}
-                        source={{uri:result.url}}/>
-                    <View style={{paddingLeft: 10}}>
-                        <Text style={styles.text}>{result.createdAt}</Text>
-                        <Text style={styles.text}>{result.desc}</Text>
+            <TouchableOpacity
+                onPress={() => this.props.navigation.navigate('Detail', {url: result.url})}>
+                <View>
+                    <View style={styles.container}>
+                        <Image
+                            style={styles.image}
+                            source={{uri: result.url}}/>
+                        <View style={{paddingLeft: 10}}>
+                            <Text style={styles.text}>{result.createdAt}</Text>
+                            <Text style={styles.text}>{result.desc}</Text>
+                        </View>
                     </View>
-
+                    <View style={styles.divider}/>
                 </View>
-            </TouchableWithoutFeedback>
+            </TouchableOpacity>
         );
 
     }
@@ -92,18 +116,25 @@ export default class ListViewDemo extends Component {
     }
 
     getMoviesFromApiAsync() {
-        return fetch('http://gank.io/api/data/福利/20/1')
+        return fetch(`http://gank.io/api/data/福利/20/${index}`)
             .then((response) => response.json())
             .then((responseData) => {
-                this.setState({
-                    dataSource: this.state.dataSource.cloneWithRows(responseData.results),
-                    isLoading: false
+                let data = responseData.results;
+                data.map((item) => {
+                    list.push(item);
                 });
+                setTimeout(() => {//让子弹飞一会儿
+                    this.setState({
+                        dataSource: this.state.dataSource.cloneWithRows(list),
+                        isLoading: false
+                    });
+                }, 500);
             })
             .catch((error) => {
                 this.setState({
                     isError: true
                 });
+                index--;
                 console.error(error);
             })
             .done();
@@ -117,7 +148,7 @@ const styles = StyleSheet.create({
     },
     image: {
         height: 80,
-        width:80,
+        width: 80,
     },
     text: {
         textAlign: 'center',
@@ -127,5 +158,10 @@ const styles = StyleSheet.create({
     listView: {
         backgroundColor: '#F5FCFF',
     },
+    divider: {
+        backgroundColor: '#D3D3D3',
+        height: 1,
+        width: width
+    }
 });
 

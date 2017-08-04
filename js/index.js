@@ -9,7 +9,12 @@ import TabScreen from "./tab/TabScreen";
 const Navigation = StackNavigator({
     Home: {screen: HomeScreen},
     List: {screen: ListViewDemo},
-    Detail: {screen: DetailScreen},
+    Detail: {
+        screen: DetailScreen,
+        navigationOptions: {
+            header: null //去除navigation bar
+        }
+    },
     Props: {screen: PropsScreen},
     Flat: {screen: FlatListDemo},
     Tab: {screen: TabScreen}
